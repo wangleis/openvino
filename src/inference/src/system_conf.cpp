@@ -372,6 +372,19 @@ int get_current_socket_id() {
 }
 #    else
 int get_current_socket_id() {
+    CPU& cpu = cpu_info();
+
+    PROCESSOR_NUMBER processorNumber;
+    USHORT numaNodeId;
+    GetCurrentProcessorNumberEx(&processorNumber);
+    GetNumaProcessorNodeEx(&processorNumber, &numaNodeId);
+
+    for (auto& row : cpu._cpu_mapping_table) {
+        if (numaNodeId == row[CPU_MAP_NUMA_NODE_ID]) {
+            return row[CPU_MAP_SOCKET_ID];
+        }
+    }
+
     return 0;
 }
 #    endif
