@@ -94,6 +94,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
                 if(factor < worst_case) {
+                    std::cout << "type = " << type1 << std::endl;
                     std::cout << "data_type_size = " << data_type_size << std::endl;
                     std::cout << "isINT8 = " << isINT8 << std::endl;
                     std::cout << "isBF16orFP16 = " << isBF16orFP16 << std::endl;
