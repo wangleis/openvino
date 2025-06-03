@@ -94,15 +94,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
                 if(factor < worst_case) {
-                    std::cout << "size_t(1) = " << size_t(1) << std::endl;
+                    std::cout << "data_type_size = " << data_type_size << std::endl;
+                    std::cout << "isINT8 = " << isINT8 << std::endl;
+                    std::cout << "isBF16orFP16 = " << isBF16orFP16 << std::endl;
                     std::cout << "Convolution dataSizeInput = " << dataSizeInput << std::endl;
-                    for (auto& row : shapeInput) {
-                            std::cout << "shapeInput = " << row << std::endl;
-                    }
                     std::cout << "Convolution dataSizeOutput = " << dataSizeOutput << std::endl;
-                    for (auto& row : shapeOutput) {
-                        std::cout << "shapeOutput = " << row << std::endl;
-                    }
                     std::cout << "Convolution factor = " << factor << std::endl;
                     std::cout << "Convolution worst_case = " << factor << std::endl;
                 }
