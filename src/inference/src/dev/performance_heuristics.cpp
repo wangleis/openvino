@@ -61,10 +61,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 total_gemms++;
                 const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
                 if(factor < worst_case) {
                     std::cout << "MatMul worst_case = " << factor << std::endl;
                 }
+                worst_case = std::min(factor, worst_case);
             }
         } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -93,10 +93,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
                 if(factor < worst_case) {
                     std::cout << "Convolution worst_case = " << factor << std::endl;
                 }
+                worst_case = std::min(factor, worst_case);
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
             const auto input = node->input(0);
@@ -117,10 +117,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_deconvs += factor < memThresholdAssumeLimited;
-                worst_case = std::min(factor, worst_case);
                 if(factor < worst_case) {
                     std::cout << "ConvolutionBackpropData worst_case = " << factor << std::endl;
                 }
+                worst_case = std::min(factor, worst_case);
             }
         }
     }
