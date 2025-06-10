@@ -3,6 +3,7 @@
 //
 
 #include "openvino/runtime/performance_heuristics.hpp"
+#include <cmath>
 
 namespace ov {
 
@@ -94,43 +95,59 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
             const auto kernels = node->input(1);
 
             total_convs++;
-            if (kernels.get_partial_shape().is_static()) {
-                const auto& shape = kernels.get_shape();
-                if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
-                    compute_convs++;
-                    continue;
-                }
-            }
+            // if (kernels.get_partial_shape().is_static()) {
+            //     const auto& shape = kernels.get_shape();
+            //     if (shape.size() >= 4 /* conventional 2D/3D conv */ && shape[2] >= 3 && shape[3] >= 3) {
+            //         compute_convs++;
+            //         continue;
+            //     }
+            // }
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
                 const auto& shapeInput = input.get_shape();
                 const auto& shapeOutput = output.get_shape();
                 const auto& shapeInput1 = kernels.get_shape();
+
+                dataSizeOutput =
+                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
+                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
+                for (size_t n = 1; n < shapeInput1.size(); n++) {
+                    conv_indicator = conv_indicator * shapeInput1[n];
+                }
+
+                std::cout << " friendly_name = " << node->get_friendly_name() << " conv_indicator = " << conv_indicator << " kernel shape = " << shapeInput1.size();
+                for (size_t i = 0; i < 5; i++) {
+                    std::cout << " ";
+                    if (shapeInput1.size() > i) {
+                        std::cout << shapeInput1[i];
+                    } else {
+                        std::cout << "0";
+                    }
+                }
+                std::cout << " output shape = " << shapeOutput.size();
+                for (int i = 0; i < 5; i++) {
+                    std::cout << " ";
+                    if (shapeOutput.size() > i) {
+                        std::cout << shapeOutput[i];
+                    } else {
+                        std::cout << "0";
+                    }
+                }
+                std::cout << std::endl;
+                const long unsigned int base_threshold = 1327104;
+                int index = log2(conv_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                conv_list[index]++;
+
                 if (shapeInput.size() > 4 /*5D*/ && isINT8) {
                     compute_convs++;
                     continue;
                 }
                 dataSizeInput =
                     std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
-                dataSizeOutput =
-                    std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
+
                 const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
-                long unsigned int conv_indicator = dataSizeOutput * data_type_size;
-                for (size_t n = 1; n < shapeInput1.size(); n++) {
-                    conv_indicator = conv_indicator * shapeInput1[n];
-                }
-                const long unsigned int base_threshold = 44 * 1056 / 8;
-                for (int n = 9; n > 0; n--) {
-                    if (conv_indicator > base_threshold * (2^n)) {
-                        conv_list[n - 1]++;
-                        break;
-                    }
-                    if(n == 1) {
-                        conv_list[0]++;
-                        break;
-                    }
-                }
             }
         } else if (!std::strcmp("ConvolutionBackpropData", node_name)) {
             const auto input = node->input(0);
