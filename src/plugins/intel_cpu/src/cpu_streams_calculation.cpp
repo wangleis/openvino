@@ -648,6 +648,7 @@ int get_model_prefer_threads(const int num_streams,
         }
         std::cout << "\n";
 
+        OPENVINO_THROW("get pressure data!");
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         if (num_streams > sockets || num_streams == 0) {

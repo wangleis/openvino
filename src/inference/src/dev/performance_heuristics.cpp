@@ -75,7 +75,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 mem_limited_gemms += factor < mem_threshold_assume_limited;
                 worst_case = std::min(factor, worst_case);
                 const long unsigned int gemm_indicator = dataSizeOutput * data_type_size;
-                const long unsigned int base_threshold = 16 * 6 * 49 * 49 / 8;
+                const long unsigned int base_threshold = 32768;
                 int index = log2(gemm_indicator / base_threshold);
                 index = index > 9 ? 9 : index < 0 ? 0 : index;
                 gemm_list[index]++;
@@ -97,7 +97,7 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 for (size_t n = 1; n < shapeInput1.size(); n++) {
                     conv_indicator = conv_indicator * shapeInput1[n];
                 }
-                const long unsigned int base_threshold = 1327104;
+                const long unsigned int base_threshold = 1048576;
                 int index = log2(conv_indicator / base_threshold);
                 index = index > 9 ? 9 : index < 0 ? 0 : index;
                 conv_list[index]++;
