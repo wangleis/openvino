@@ -337,14 +337,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                 } else {
                     n_threads_per_stream = (n_proc > 16) ? 4 : std::max(1, (n_proc / 4));
                 }
-                if (input_threads > 0) {
-                    n_streams = n_threads / n_threads_per_stream;
-                } else {
-                    n_streams = 0;
-                    for (size_t i = MAIN_CORE_PROC; i <= HYPER_THREADING_PROC; i++) {
-                        n_streams += proc_type_table[0][i] / n_threads_per_stream;
-                    }
-                }
+                n_streams = (n_threads / n_threads_per_stream);
                 if ((input_infer_requests > 0) && (n_streams > input_infer_requests)) {
                     n_streams = input_infer_requests;
                     if (proc_type_table.size() == 1) {
