@@ -14,6 +14,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0, total_adds = 0, mem_limited_adds = 0,
         total_nodes = 0, total_light_convs = 0, total_light_gemms = 0;
+    std::vector<int> conv_list(10,0);
+    std::vector<int> gemm_list(10,0);
 
     constexpr int light_convs_threshold = 16777216;
     constexpr int light_gemms_threshold = 131072;
@@ -78,6 +80,11 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 if (dataSizeOutput * data_type_size < light_gemms_threshold) {
                     total_light_gemms++;
                 }
+                const long unsigned int gemm_indicator = dataSizeOutput * data_type_size;
+                const long unsigned int base_threshold = 32768;
+                int index = log2(gemm_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                gemm_list[index]++;
             }
         } else if (!std::strcmp("Convolution", node_name)) {
             // Check that input and output shape a fully defined (not dynamic)
@@ -99,6 +106,10 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
                 if (conv_indicator < light_convs_threshold) {
                     total_light_convs++;
                 }
+                const long unsigned int base_threshold = 1048576;
+                int index = log2(conv_indicator / base_threshold);
+                index = index > 9 ? 9 : index < 0 ? 0 : index;
+                conv_list[index]++;
             }
 
             if (kernels.get_partial_shape().is_static()) {
@@ -178,6 +189,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
     res.total_light_convs = total_light_convs;
     res.total_light_gemms = total_light_gemms;
     res.total_nodes = total_nodes;
+    res.gemm_list = gemm_list;
+    res.conv_list = conv_list;
     return res;
 }
 

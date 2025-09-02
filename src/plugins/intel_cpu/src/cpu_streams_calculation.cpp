@@ -670,6 +670,33 @@ int get_model_prefer_threads(const int num_streams,
                                                  memThresholdAssumeLimitedForISA,
                                                  config.inferencePrecision);
 
+        std::cout << "isaSpecificThreshold = " << isaSpecificThreshold << std::endl;                                         
+        std::cout << "max_mem_tolerance = " << networkToleranceForLowCache.max_mem_tolerance << std::endl;
+        std::cout << "ratio_compute_convs = " << networkToleranceForLowCache.ratio_compute_convs << std::endl;
+        std::cout << "ratio_mem_limited_convs = " << networkToleranceForLowCache.ratio_mem_limited_convs << std::endl;
+        std::cout << "ratio_mem_limited_deconvs = " << networkToleranceForLowCache.ratio_mem_limited_deconvs
+                  << std::endl;
+        std::cout << "ratio_mem_limited_gemms = " << networkToleranceForLowCache.ratio_mem_limited_gemms << std::endl;
+        std::cout << "ratio_mem_limited_adds = " << networkToleranceForLowCache.ratio_mem_limited_adds << std::endl;
+        std::cout << "ratio_compute_deconvs = " << networkToleranceForLowCache.ratio_compute_deconvs << std::endl;
+        std::cout << "total_gemms = " << networkToleranceForLowCache.total_gemms << std::endl;
+        std::cout << "total_convs = " << networkToleranceForLowCache.total_convs << std::endl;
+        std::cout << "total_adds = " << networkToleranceForLowCache.total_adds << std::endl;
+        std::cout << "total_light_convs = " << networkToleranceForLowCache.total_light_convs << std::endl;
+        std::cout << "total_light_gemms = " << networkToleranceForLowCache.total_light_gemms << std::endl;
+        std::cout << "total_nodes = " << networkToleranceForLowCache.total_nodes << std::endl;
+        std::cout << "conv_list: ";
+        for (auto i = 0; i < networkToleranceForLowCache.conv_list.size(); i++) {
+            std::cout << networkToleranceForLowCache.conv_list[i] << ",";
+        }
+        std::cout << "\ngemm_list: ";
+        for (auto i = 0; i < networkToleranceForLowCache.gemm_list.size(); i++) {
+            std::cout << networkToleranceForLowCache.gemm_list[i] << ",";
+        }
+        std::cout << "\n";
+
+        OPENVINO_THROW("get pressure data!");
+
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         config.modelPreferThreadsThroughput = 4;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
