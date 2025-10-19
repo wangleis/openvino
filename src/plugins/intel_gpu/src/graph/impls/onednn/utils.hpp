@@ -26,7 +26,7 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l);
 // cldnn -> onednn
 dnnl::memory::dims convert_tensor(cldnn::tensor t, size_t dims = 2, bool is_grouped = false);
 dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed);
-dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t dims, bool batched_dims_can_be_removed);
+dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed);
 dnnl::memory::dims convert_spatials(cldnn::tensor t, size_t dims = 2);
 dnnl::memory::dims flatten_tensor(cldnn::tensor t);
 dnnl::memory::dims get_strides(dnnl::memory::dims dims);
@@ -41,6 +41,7 @@ enum class mem_flags : uint32_t {
     flatten      = 1 << 0,
     use_strides  = 1 << 1,
     need_blocked = 1 << 2,
+    grouped      = 1 << 3,
 };
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,
@@ -79,5 +80,8 @@ struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
     dnnl::memory::desc _out_desc;
 };
 
+int get_prelu_mask_from_layouts(const std::function<layout()>& get_output_layout,
+                                const std::function<layout(int32_t)>& get_input_layout,
+                                int32_t slope_input_idx);
 }  // namespace onednn
 }  // namespace cldnn

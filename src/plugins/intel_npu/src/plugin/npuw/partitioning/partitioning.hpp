@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "../attention.hpp"
 #include "../lazy_tensor.hpp"
 #include "../spatial.hpp"
 #include "intel_npu/config/config.hpp"
@@ -85,6 +86,8 @@ struct Function {
     std::map<std::pair<std::string, std::size_t>, std::size_t> _param_mapping;
 
     std::optional<ov::npuw::function::Spatial> _spatial;
+    std::optional<ov::npuw::function::Attention> _attention;
+    // FIXME: They should exclude each other (introduce a hierarchy, finally?)
 
     // FIXME: shouldn't be here. Needed to not unpack some lazy closures in DCOFF
     std::set<std::size_t> _idx_lazy_unpack;
@@ -147,7 +150,13 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& config);
+struct PartitioningContext {
+    bool use_host_gather_quant = false;
+};
+
+Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& config,
+                             const PartitioningContext& ctx = {});
 
 }  // namespace npuw
 }  // namespace ov
