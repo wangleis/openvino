@@ -361,6 +361,11 @@ struct StreamsInfoBuilder {
         set_ids(one_proc_info);
         streams_info_table.push_back(stream_info);
 
+        if (num_threads == proc_type_table[0][ALL_PROC] && proc_type_table.size() == 1 &&
+            (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
+            return;
+        }
+
         stream_info[NUMBER_OF_STREAMS] = 0;
         int total_threads = stream_info[THREADS_PER_STREAM];
         int socket_id = stream_info[STREAM_SOCKET_ID];
@@ -841,23 +846,26 @@ struct StreamsInfoBuilder {
                     break;
                 }
                 n_streams--;
-                int numa_node_id = streams_info_table[stream_table_size + 1][STREAM_NUMA_NODE_ID];
-                int socket_id = streams_info_table[stream_table_size + 1][STREAM_SOCKET_ID];
-                for (size_t i = stream_table_size + 1; i < streams_info_table.size(); i++) {
-                    numa_node_id = numa_node_id == streams_info_table[i][STREAM_NUMA_NODE_ID] ? numa_node_id : -1;
-                    socket_id = socket_id == streams_info_table[i][STREAM_SOCKET_ID] ? socket_id : -1;
-                    for (auto& row : remain_proc_type_table) {
-                        if ((streams_info_table[i][STREAM_NUMA_NODE_ID] == row[PROC_NUMA_NODE_ID]) &&
-                            (streams_info_table[i][STREAM_SOCKET_ID] == row[PROC_SOCKET_ID])) {
-                            row[streams_info_table[i][PROC_TYPE]] -= (streams_info_table[i][NUMBER_OF_STREAMS] == 0
-                                                                          ? 1
-                                                                          : streams_info_table[i][NUMBER_OF_STREAMS]) *
-                                                                     streams_info_table[i][THREADS_PER_STREAM];
+                if (streams_info_table.size() > stream_table_size + 1) {
+                    int numa_node_id = streams_info_table[stream_table_size + 1][STREAM_NUMA_NODE_ID];
+                    int socket_id = streams_info_table[stream_table_size + 1][STREAM_SOCKET_ID];
+                    for (size_t i = stream_table_size + 1; i < streams_info_table.size(); i++) {
+                        numa_node_id = numa_node_id == streams_info_table[i][STREAM_NUMA_NODE_ID] ? numa_node_id : -1;
+                        socket_id = socket_id == streams_info_table[i][STREAM_SOCKET_ID] ? socket_id : -1;
+                        for (auto& row : remain_proc_type_table) {
+                            if ((streams_info_table[i][STREAM_NUMA_NODE_ID] == row[PROC_NUMA_NODE_ID]) &&
+                                (streams_info_table[i][STREAM_SOCKET_ID] == row[PROC_SOCKET_ID])) {
+                                row[streams_info_table[i][PROC_TYPE]] -=
+                                    (streams_info_table[i][NUMBER_OF_STREAMS] == 0
+                                         ? 1
+                                         : streams_info_table[i][NUMBER_OF_STREAMS]) *
+                                    streams_info_table[i][THREADS_PER_STREAM];
+                            }
                         }
                     }
+                    streams_info_table[stream_table_size][STREAM_NUMA_NODE_ID] = numa_node_id;
+                    streams_info_table[stream_table_size][STREAM_SOCKET_ID] = socket_id;
                 }
-                streams_info_table[stream_table_size][STREAM_NUMA_NODE_ID] = numa_node_id;
-                streams_info_table[stream_table_size][STREAM_SOCKET_ID] = socket_id;
                 stream_table_size = streams_info_table.size();
             }
         }

@@ -590,6 +590,42 @@ LinuxCpuStreamTypeCase _1sockets_24cores_all_proc_hyper_threading = {
     {2},
 };
 
+// Hybrid CPU (8P + 4E), single socket, no pinning, latency mode using all physical cores.
+// streams_info_table has a single ALL_PROC row with no sub-rows.
+// Expected: STREAM_WITHOUT_PARAM (not STREAM_WITH_CORE_TYPE).
+LinuxCpuStreamTypeCase _1sockets_12cores_hybrid_allproc_nobinding = {
+    false,  // param[in]: cpu_pinning
+    1,      // param[in]: number of numa nodes
+    // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, NUMA_NODE_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
+    {
+        {0, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {4, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},  {5, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {6, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},  {7, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {8, 0, 0, 4, HYPER_THREADING_PROC, 4, -1},  {9, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {10, 0, 0, 5, HYPER_THREADING_PROC, 5, -1}, {11, 0, 0, 5, MAIN_CORE_PROC, 5, -1},
+        {12, 0, 0, 6, HYPER_THREADING_PROC, 6, -1}, {13, 0, 0, 6, MAIN_CORE_PROC, 6, -1},
+        {14, 0, 0, 7, HYPER_THREADING_PROC, 7, -1}, {15, 0, 0, 7, MAIN_CORE_PROC, 7, -1},
+        {16, 0, 0, 8, EFFICIENT_CORE_PROC, 8, -1},  {17, 0, 0, 9, EFFICIENT_CORE_PROC, 8, -1},
+        {18, 0, 0, 10, EFFICIENT_CORE_PROC, 8, -1}, {19, 0, 0, 11, EFFICIENT_CORE_PROC, 8, -1},
+    },
+    // param[in]: proc_type_table, {ALL_PROC, MAIN_CORE_PROC, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC,
+    //                               HYPER_THREADING_PROC, NUMA_NODE_ID, SOCKET_ID}
+    {{20, 8, 4, 0, 8, 0, 0}},
+    // param[in]: streams_info_table — single ALL_PROC row, no sub-rows
+    {{1, ALL_PROC, 12, 0, 0}},
+    // param[out]: stream_type
+    {STREAM_WITHOUT_PARAM},
+    // param[out]: concurrency
+    {12},
+    // param[out]: core_type
+    {ALL_PROC},
+    // param[out]: numa_node_id
+    {0},
+    // param[out]: max_threads_per_core
+    {1},
+};
+
 TEST_P(LinuxCpuStreamTypeTests, LinuxCpuStreamType) {}
 
 INSTANTIATE_TEST_SUITE_P(CpuStreamType,
@@ -606,6 +642,7 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_12cores_ecore_nobinding,
                                          _1sockets_12cores_ecore_binding,
                                          _1sockets_24cores_all_proc,
-                                         _1sockets_24cores_all_proc_hyper_threading));
+                                         _1sockets_24cores_all_proc_hyper_threading,
+                                         _1sockets_12cores_hybrid_allproc_nobinding));
 #endif
 }  // namespace

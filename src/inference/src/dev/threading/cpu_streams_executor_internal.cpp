@@ -40,8 +40,10 @@ void get_cur_stream_info(const int stream_id,
     socket_id = streams_info_table[stream_info_id][STREAM_SOCKET_ID];
     max_threads_per_core = 1;
     if (core_type == ALL_PROC) {
+        bool has_sub_streams = false;
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
+                has_sub_streams = true;
                 if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
                     ecore_used = true;
                 } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
@@ -50,6 +52,10 @@ void get_cur_stream_info(const int stream_id,
             } else {
                 break;
             }
+        }
+        if (!has_sub_streams) {
+            stream_type = STREAM_WITHOUT_PARAM;
+            return;
         }
     } else if (core_type == HYPER_THREADING_PROC) {
         max_threads_per_core = 2;
