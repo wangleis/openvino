@@ -362,6 +362,7 @@ struct StreamsInfoBuilder {
         streams_info_table.push_back(stream_info);
 
         if (num_threads == proc_type_table[0][ALL_PROC] && proc_type_table.size() == 1 &&
+            proc_type_table[0][MAIN_CORE_PROC] > 0 &&
             (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0)) {
             return;
         }
