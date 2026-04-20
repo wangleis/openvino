@@ -22,7 +22,7 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/variable.hpp"
-#include "openvino/op/moe_3gemm_fused_compressed.hpp"
+
 #include "openvino/op/linear_attn.hpp"
 #include "openvino/op/fused_conv.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -1274,14 +1274,7 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(const std::vector<ov::Out
         opsetIt = m_opsets.find("opset6");
     }
 
-    if(type_name == "MOE3GemmFusedCompressed") {
-        ovNode = std::make_shared<ov::op::internal::MOE3GemmFusedCompressed>();
-        ovNode->set_arguments(inputs);
-        auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);
-        if (ovNode->visit_attributes(*visitor)) {
-            ovNode->constructor_validate_and_infer_types();
-        }
-    } else if(type_name == "RoPE") {
+    if(type_name == "RoPE") {
         ovNode = std::make_shared<ov::op::internal::RoPE>();
         ovNode->set_arguments(inputs);
         auto visitor = make_visitor(node, weights, m_opsets, m_extensions, m_variables, m_version);

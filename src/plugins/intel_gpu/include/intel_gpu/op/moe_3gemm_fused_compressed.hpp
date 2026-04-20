@@ -4,16 +4,14 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include "openvino/op/moe.hpp"
-#include "openvino/op/moe_compressed.hpp"
+#include "intel_gpu/op/moe_compressed.hpp"
 
-namespace ov::op::internal {
+namespace ov::intel_gpu::op {
 
-/// \brief MOE3GemmFusedCompressed that supports compressed and fused MOE for GEMM3_SWIGLU.
-class OPENVINO_API MOE3GemmFusedCompressed : public MOECompressed {
+/// \brief MOE3GemmFusedCompressed that support compressed and fused MOE for GEMM3_SWIGLU.
+class MOE3GemmFusedCompressed : public MOECompressed {
 public:
-    OPENVINO_OP("MOE3GemmFusedCompressed");
+    OPENVINO_OP("MOE3GemmFusedCompressed", "gpu_opset", MOECompressed);
 
     MOE3GemmFusedCompressed() = default;
 
@@ -42,11 +40,11 @@ public:
     ///   11: routing_bias (optional, SIGMOID_BIAS only) - [1, num_experts] routing bias for sigmoid routing
     ///   12: routing_eps (optional, SIGMOID_BIAS only) - scalar epsilon for normalization (read at kernel compile time)
     /// \param config Configuration for the MOE 3GEMM SWIGLU fused operation
-    MOE3GemmFusedCompressed(const OutputVector& args, const Config config);
+    MOE3GemmFusedCompressed(const OutputVector& args, const MOECompressed::Config config);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 
-}  // namespace ov::op::internal
+}  // namespace ov::intel_gpu::op

@@ -8,12 +8,12 @@
 #include "openvino/op/moe.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov::op::internal {
+namespace ov::intel_gpu::op {
 
 /// \brief MOECompressed experts that support compressed weights for GEMM3_SWIGLU MOE.
-class OPENVINO_API MOECompressed : public MOE {
+class MOECompressed : public ov::op::internal::MOE {
 public:
-    OPENVINO_OP("MOECompressed");
+    OPENVINO_OP("MOECompressed", "gpu_opset", ov::op::internal::MOE);
 
     MOECompressed() = default;
     MOECompressed(const OutputVector& args) : MOE(args) {}
@@ -27,7 +27,7 @@ public:
         size_t top_k = 0;
         // numeric_limits<size_t>::max() means per_channel compression (single group).
         // other non-zero value means group compression with this given group_size.
-        size_t group_size = 0; 
+        size_t group_size = 0;
         // In CB, intermediate shapes are expanded to {SeqLen, 1, HiddenSize}
         // In Non-CB, intermediate shapes are expanded to {Batch, SeqLen, HiddenSize}
         size_t has_batch_dim = 0;
@@ -78,15 +78,17 @@ protected:
 
 std::ostream& operator<<(std::ostream& s, const MOECompressed::RoutingType& type);
 
-}  // namespace ov::op::internal
+}  // namespace ov::intel_gpu::op
 
 namespace ov {
 template <>
-class AttributeAdapter<ov::op::internal::MOECompressed::RoutingType> : public EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType> {
+class AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType>
+    : public EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType> {
 public:
-    AttributeAdapter(ov::op::internal::MOECompressed::RoutingType& value) : EnumAttributeAdapterBase<ov::op::internal::MOECompressed::RoutingType>(value) {}
+    AttributeAdapter(ov::intel_gpu::op::MOECompressed::RoutingType& value)
+        : EnumAttributeAdapterBase<ov::intel_gpu::op::MOECompressed::RoutingType>(value) {}
 
-    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::MOECompressed::RoutingType>");
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_gpu::op::MOECompressed::RoutingType>");
     ~AttributeAdapter() override = default;
 };
 }  // namespace ov
