@@ -35,9 +35,7 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
 
     auto moe_3gemm_fused_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{moe_softmax_m, moe_sigmoid_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS,
-                                          moe_softmax_m,
-                                          moe_sigmoid_m](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         std::shared_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed> moe_3gemm_fused_compressed;
         if (pattern_map.count(moe_softmax_m) > 0) {

@@ -241,13 +241,15 @@ ConvertMOEToMOECompressed::ConvertMOEToMOECompressed(bool is_pa) {
 
             // Since f16 precision is forced for MOECompressed output, we may need to insert Convert after MOECompressed
             // in order not to break the model semantic. This Convert will be most likely optimized at ConvertPrecision stage
+            std::shared_ptr<ov::Node> moe_output = moe_compressed;
             if (moe->get_output_element_type(0) != moe_compressed->get_output_element_type(0)) {
                 moe_compressed->set_friendly_name(moe_compressed->get_friendly_name() + "/MOECompressed");
-                moe_compressed = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
-                moe_compressed->set_friendly_name(moe->get_friendly_name());
-                ov::copy_runtime_info(moe, moe_compressed);
+                auto convert = std::make_shared<ov::op::v0::Convert>(moe_compressed, moe->get_output_element_type(0));
+                convert->set_friendly_name(moe->get_friendly_name());
+                ov::copy_runtime_info(moe, convert);
+                moe_output = convert;
             }
-            ov::replace_node(moe, moe_compressed);
+            ov::replace_node(moe, moe_output);
         } else if (moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP) {
             OutputVector args;
             auto topk_indice_node = pattern_map.at(topk_indices_gemm2_m);
