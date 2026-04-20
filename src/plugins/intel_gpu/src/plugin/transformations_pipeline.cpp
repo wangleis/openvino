@@ -13,6 +13,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <type_traits>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -223,6 +224,11 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
+template <typename T>
+static typename std::enable_if<std::is_integral<T>::value, T>::type align_to(T size, size_t align) {
+    return static_cast<T>((size % align == 0) ? size : size - size % align + align);
+}
+
 static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node, bool supports_immad) {
     std::vector<ov::DiscreteTypeInfo> target_consumers = {ov::opset1::MatMul::get_type_info_static(),
                                                           ov::op::internal::MOE::get_type_info_static(),
@@ -386,9 +392,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
-    ov::element::Type infer_precision = ov::element::dynamic;
     bool unroll_loop = config.get_enable_loop_unrolling();
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+
+    // call conversion of float types with keep_precision_sensitive_in_fp32 = true
+    auto fp_precision_supported = [&](ov::element::Type e) -> bool {
+        switch (e) {
+            case ov::element::f16: return device_info.supports_fp16;
+            case ov::element::f32: return true; // assume that all GPUs support f32 data type
+            case ov::element::f64: return device_info.supports_fp64;
+            case ov::element::bf16: return false;
+            default: return false;
+        }
+        return false;
+    };
+    const auto fallback_precision = ov::element::f32;
+    auto infer_precision = config.get_inference_precision();
+    if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
+        infer_precision = fallback_precision;
+    }
     {
         using namespace ov::pass::low_precision;
         const auto enableQDQStripping = LowPrecision::isFunctionQuantized(func, std::set<levels>{levels::int16});
@@ -399,7 +421,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // 1. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32}, true);
             // 2. Strip FQ layers with unsupported levels
-            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
+            const bool need_weights_adjustment = infer_precision == ov::element::f16;
+            qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, need_weights_adjustment);
             qdq_stripping_manager.run_passes(func);
             is_model_quantized = LowPrecision::isFunctionQuantized(func);
         }
@@ -421,7 +444,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
                     const auto& info = engine.get_device_info();
-                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
+                    if (!info.supports_immad) { // CM optimized for systolic-array architectures
                         return true;
                     }
 
@@ -488,19 +511,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 {ov::element::f64, ov::element::f32}
         };
 
-        // call conversion of float types with keep_precision_sensitive_in_fp32 = true
-        auto fp_precision_supported = [&](ov::element::Type e) -> bool {
-            switch (e) {
-                case ov::element::f16: return device_info.supports_fp16;
-                case ov::element::f32: return true; // assume that all GPUs support f32 data type
-                case ov::element::f64: return device_info.supports_fp64;
-                case ov::element::bf16: return false;
-                default: return false;
-            }
-            return false;
-        };
-
-        const auto fallback_precision = ov::element::f32;
         std::vector<ov::element::Type> fp_element_types = {
                 ov::element::f32,
                 ov::element::f16,
@@ -508,11 +518,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
 
         // Add conversion from FP data types to infer precision if it's specified
-        infer_precision = config.get_inference_precision();
         if (infer_precision != ov::element::dynamic) {
-            if (!fp_precision_supported(infer_precision))
-                infer_precision = fallback_precision;
-
             for (auto& et : fp_element_types) {
                 if (et != infer_precision) {
                     fp_convert_precision_map.insert({et, infer_precision});
@@ -531,7 +537,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         type_to_fuse_map empty_fuse_map = {};
-        manager.register_pass<ov::pass::Validate>();
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
@@ -571,7 +576,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const int32_t vec_size = 8;
             return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
         });
-        manager.register_pass<ov::pass::RMSFusion>(false, true);
+        manager.register_pass<ov::pass::RMSFusion>(false, true, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
         manager.register_pass<DisableFP16ComSinGenPatternForHiFiGAN>();
@@ -607,7 +612,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto check_xattn_gpu_compatibility  = [&](void) -> bool {
                         auto& engine = m_context->get_engine();
                         const auto& info = engine.get_device_info();
-                        if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3) { // CM optimized for systolic-array architectures
+                         if (!info.supports_immad) {  // CM optimized for systolic-array architectures
                             return false;
                         }
 
@@ -694,11 +699,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         // TODO: need to handle group size != block size case
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             block_size += infer_precision.size() * 2;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size = align_to(head_size / 2, 16);
+                            block_size += infer_precision.size() * 4;
                         }
                     } else {
                         if (precision == ov::element::i8 || precision == ov::element::u8) {
                             head_size += infer_precision.size() * 2 * group_num;
+                        } else if (precision == ov::element::i4 || precision == ov::element::u4) {
+                            head_size = align_to(head_size / 2, 16);
+                            head_size += infer_precision.size() * 4 * group_num;
                         }
+                    }
+                },
+                [&] (ov::element::Type& precision) {
+                    // Use u8/i8 for cache even if the inference precision is i4/u4,
+                    // to avoid issue that u4-type cache is called by ov::RemoteTensor in genai.
+                    if (precision == ov::element::i4 || precision == ov::element::u4) {
+                        precision = (config.get_kv_cache_precision() == ov::element::i4) ? ov::element::i8 : ov::element::u8;
                     }
                 });
         }
@@ -749,15 +767,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                  return false;
              }
 
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
-            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
+            // reasons and implementation limitations (see sdpa micro and sdpa opt kernels).
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
-            bool valid_head_size = (head_size >= 64 && head_size <= 256);
-            if (!valid_head_size) {
+            bool valid_head_size = (head_size >= 64 && head_size <= std::min(device_info.max_work_group_size, static_cast<uint64_t>(512)));
+            if (!valid_head_size || head_size % 2 != 0) { // head_size should be an even number (until the SDPA opt kernel is fixed for odd head size)
                 return false;
             }
 
@@ -865,7 +884,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             {ov::element::u4, ov::element::u8},
         };
 
-        manager.register_pass<ov::pass::Validate>();
         const bool keep_precision_sensitive_in_fp32_2 = true;
 
         // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
@@ -1305,11 +1323,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::op::v3::Broadcast::get_type_info_static(),
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
-        // FIXME (151111): this Validate is added as a workaround for resolving element
-        // types after MoveEltwiseUpThroughDataMovScalar. It has to be removed
-        // after 141764 is fixed as there's a clear issue with Validate passes
-        // not working properly.
-        manager.register_pass<ov::pass::Validate>();
 
         manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
@@ -1403,7 +1416,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // Temporary disabling for BMG due to regression
-            if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {
+            if (device_info.arch != cldnn::gpu_arch::xe2 && (!config.get_enable_lora_operation() || device_info.supports_immad)) {
                 manager.register_pass<ov::intel_gpu::LoRAHorizontalFusion>();
             }
         }
@@ -1437,9 +1450,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
+
         auto kv_cache_compression_dt = config.get_kv_cache_precision();
         manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
-
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
@@ -1562,6 +1575,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         GPU_DEBUG_IF(config.get_verbose() >= 1) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
+        manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
     }
 }

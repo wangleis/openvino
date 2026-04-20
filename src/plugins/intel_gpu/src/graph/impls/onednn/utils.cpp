@@ -5,7 +5,6 @@
 #include "utils.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
-#include <oneapi/dnnl/dnnl_ocl.hpp>
 
 namespace cldnn {
 namespace onednn {
@@ -404,6 +403,8 @@ private:
                 auto it = format_map_cldnn_4d_to_onednn_3d.find(_layout.format);
                 if (it != format_map_cldnn_4d_to_onednn_3d.end()) {
                     fmt_tag = it->second;
+                } else if (_layout.format == cldnn::format::custom) {
+                    fmt_tag = dnnl::memory::format_tag::any;
                 } else {
                     OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
                 }

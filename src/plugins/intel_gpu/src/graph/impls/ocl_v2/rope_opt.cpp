@@ -134,6 +134,8 @@ protected:
                 jit.make("USE_ROPE_CACHE", true);
             }
             jit.make("CHATGLM", true);
+        } else if (desc->config.is_ltx_video) {
+            jit.make("LTX_VIDEO", true);
         } else if (desc->config.is_interleaved) {
             jit.make("RotateInterleaved", true);
         } else {
@@ -202,7 +204,10 @@ protected:
                     } else {
                         wgs.global = {b, f, head_count * (cfg.rotary_ndims / 2ul) / vec_size};
                     }
-
+                } else if (cfg.is_ltx_video) {
+                    auto b = extract_channel(ChannelName::BATCH, in_l);
+                    auto f = extract_channel(ChannelName::FEATURE, in_l);
+                    wgs.global = {b, f, cfg.rotary_ndims / 2ul / vec_size};
                 } else {
                     auto b = extract_channel(ChannelName::BATCH, out_l);
                     auto f = extract_channel(ChannelName::FEATURE, out_l);
